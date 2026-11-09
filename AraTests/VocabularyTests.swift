@@ -61,4 +61,10 @@ struct VocabularyTests {
         store.removeEmptyEntries()
         #expect(store.entries.map(\.heard) == ["Cloud"])
     }
+
+    @Test func deleteAllEmptiesTheVocabulary() {
+        let store = makeStore([VocabularyEntry(heard: "Cloud", replacement: "Claude")])
+        store.deleteAll()
+        #expect(store.entries.isEmpty)
+    }
 }

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct VocabularyView: View {
     @Bindable var store: VocabularyStore
+    @State private var confirmsDeleteAll = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -27,6 +28,10 @@ struct VocabularyView: View {
                 Button("Add Word", systemImage: "plus") {
                     store.addManualEntry()
                 }
+                Button("Delete All", systemImage: "trash", role: .destructive) {
+                    confirmsDeleteAll = true
+                }
+                .disabled(store.entries.isEmpty)
                 Spacer()
                 Text("\(store.entries.filter(\.isActive).count) active, \(store.entries.count) total")
                     .foregroundStyle(.secondary)
@@ -35,6 +40,16 @@ struct VocabularyView: View {
         }
         .frame(minWidth: 560, minHeight: 360)
         .onDisappear { store.removeEmptyEntries() }
+        .confirmationDialog(
+            "Delete all \(store.entries.count) words?",
+            isPresented: $confirmsDeleteAll
+        ) {
+            Button("Delete All", role: .destructive) {
+                store.deleteAll()
+            }
+        } message: {
+            Text("This cannot be undone.")
+        }
     }
 }
 

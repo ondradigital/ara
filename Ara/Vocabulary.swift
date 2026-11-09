@@ -161,6 +161,10 @@ final class VocabularyStore {
         }
     }
 
+    func deleteAll() {
+        entries.removeAll()
+    }
+
     func delete(_ entry: VocabularyEntry) {
         entries.removeAll { $0.id == entry.id }
     }
