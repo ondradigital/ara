@@ -6,7 +6,7 @@ import Observation
 import ServiceManagement
 import os
 
-enum DictationPhase: String {
+enum DictationPhase {
     case idle
     case recording
     case transcribing
@@ -265,17 +265,22 @@ final class AppState {
         showNotice("No text field in focus. Text copied, press ⌘V to paste.", systemImage: "doc.on.clipboard")
     }
 
-    private func showNotice(_ text: String, systemImage: String) {
+    private func showNotice(_ text: String, systemImage: String, for duration: Duration = .seconds(4)) {
         notice.show(NoticeView(text: text, systemImage: systemImage))
         noticeHide?.cancel()
         noticeHide = Task { [notice] in
-            try? await Task.sleep(for: .seconds(4))
+            try? await Task.sleep(for: duration)
             guard !Task.isCancelled else { return }
             notice.hide()
         }
     }
 
     private func updateIndicator() {
+        if phase == .recording {
+            // The notice sits where the recording indicator appears.
+            noticeHide?.cancel()
+            notice.hide()
+        }
         if phase == .recording, showsRecordingIndicator {
             indicator.show(RecordingIndicatorView(meter: meter))
         } else {
@@ -319,13 +324,7 @@ final class AppState {
             guard let selection = await TextInserter.copySelection(),
                 let correction = CorrectionDiff.correction(forSelection: selection, in: inserted)
             else {
-                showNotice("Select the corrected word in the text first.", systemImage: "text.cursor")
-                noticeHide?.cancel()
-                noticeHide = Task { [notice] in
-                    try? await Task.sleep(for: .seconds(3))
-                    guard !Task.isCancelled else { return }
-                    notice.hide()
-                }
+                showNotice("Select the corrected word in the text first.", systemImage: "text.cursor", for: .seconds(3))
                 return
             }
             enqueue(vocabulary.proposals(for: correction))

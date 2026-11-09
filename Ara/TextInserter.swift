@@ -42,6 +42,9 @@ enum TextInserter {
 
     static func insert(_ text: String) async -> Outcome {
         let pasteboard = NSPasteboard.general
+        // A paste still waiting for its restore puts the user's clipboard back first,
+        // so that is what this paste saves and restores.
+        pendingRestore?.run()
 
         guard isTrusted else {
             pasteboard.clearContents()
@@ -49,44 +52,39 @@ enum TextInserter {
             return .noPermission
         }
 
-        // Nothing would receive the paste, so the clipboard is the only place the text can live.
+        let focused = FocusedElement.current()
         let focus = focusState()
-        logFocus(focus)
+        logFocus(focus, element: focused)
+        // Nothing would receive the paste, so the clipboard is the only place the text can live.
         guard focus != .noTextField else {
             pasteboard.clearContents()
             pasteboard.setString(text, forType: .string)
             return .noTextField
         }
 
-        let previous = snapshot(of: pasteboard)
-        let field = focusedElement()
-        let before = field.flatMap(value(of:))
+        let before = focused.flatMap(FocusedElement.value(of:))
+        let restore = PendingRestore(previous: snapshot(of: pasteboard))
         pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
         // Clipboard managers skip entries carrying this marker (nspasteboard.org).
         pasteboard.setData(Data(), forType: .init("org.nspasteboard.TransientType"))
-        let changeCount = pasteboard.changeCount
+        restore.changeCount = pasteboard.changeCount
 
         postCommandKey(kVK_ANSI_V)
 
         // The previous clipboard always comes back, so a picture copied before dictating is
         // still there afterwards. A lost paste can be repeated with the paste-again shortcut.
-        let restorePrevious = {
-            disarmUserPaste()
-            // Something else was copied in the meantime; leave it alone.
-            guard pasteboard.changeCount == changeCount else { return }
-            restore(previous, to: pasteboard)
-        }
-        // A ⌘V the user presses before the restore would paste the dictation a second time,
-        // so it brings the previous clipboard back first.
-        armUserPaste(restorePrevious)
+        // A ⌘V the user presses before that would paste the dictation a second time, so it
+        // brings the previous clipboard back first.
+        pendingRestore = restore
+        armUserPaste()
 
-        guard focus == .textField, let field, let before else {
+        guard focus == .textField, let focused, let before else {
+            // The target app reads the clipboard when it handles the paste, which can lag behind the key event.
+            // Some fields (such as an edit box in Warp) take well over 500 ms and then got the old clipboard.
             Task {
-                // The target app reads the clipboard when it handles the paste, which can lag behind the key event.
-                // Some fields (such as an edit box in Warp) take well over 500 ms and then got the old clipboard.
                 try? await Task.sleep(for: .milliseconds(1500))
-                restorePrevious()
+                restore.run()
             }
             return .pastedUnverified
         }
@@ -95,73 +93,38 @@ enum TextInserter {
         let occurrences = before.components(separatedBy: text).count
         for _ in 0..<15 {
             try? await Task.sleep(for: .milliseconds(100))
-            guard let now = value(of: field) else { continue }
+            guard let now = FocusedElement.value(of: focused) else { continue }
             if now != before, now.components(separatedBy: text).count > occurrences {
-                restorePrevious()
+                restore.run()
                 return .pasted
             }
         }
         logger.notice("paste not seen in the field after 1.5 s")
-        restorePrevious()
+        restore.run()
         return .pasteFailed
     }
 
-    private static func focusedElement() -> AXUIElement? {
-        let system = AXUIElementCreateSystemWide()
-        AXUIElementSetMessagingTimeout(system, 0.5)
-        var reference: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(system, kAXFocusedUIElementAttribute as CFString, &reference) == .success,
-            let reference, CFGetTypeID(reference) == AXUIElementGetTypeID()
-        else { return nil }
-        return (reference as! AXUIElement)
-    }
-
-    private static func value(of element: AXUIElement) -> String? {
-        var reference: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(element, kAXValueAttribute as CFString, &reference) == .success else {
-            return nil
-        }
-        return reference as? String
-    }
-
     /// Records where a paste goes, to trace fields that do not take it.
-    private static func logFocus(_ focus: Focus) {
+    private static func logFocus(_ focus: Focus, element: AXUIElement?) {
         let app = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "?"
-        let system = AXUIElementCreateSystemWide()
-        AXUIElementSetMessagingTimeout(system, 0.5)
-        var reference: CFTypeRef?
-        var role: CFTypeRef?
-        var subrole: CFTypeRef?
-        if AXUIElementCopyAttributeValue(system, kAXFocusedUIElementAttribute as CFString, &reference) == .success,
-            let reference, CFGetTypeID(reference) == AXUIElementGetTypeID()
-        {
-            let element = reference as! AXUIElement
-            AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &role)
-            AXUIElementCopyAttributeValue(element, kAXSubroleAttribute as CFString, &subrole)
-        }
+        let role = element.flatMap { FocusedElement.string(kAXRoleAttribute, of: $0) } ?? "-"
+        let subrole = element.flatMap { FocusedElement.string(kAXSubroleAttribute, of: $0) } ?? "-"
         let flags = CGEventSource.flagsState(.combinedSessionState).rawValue
-        logger.notice("focus \(String(describing: focus), privacy: .public) in \(app, privacy: .public): role \((role as? String) ?? "-", privacy: .public), subrole \((subrole as? String) ?? "-", privacy: .public), held modifiers \(flags, privacy: .public)")
+        logger.notice("focus \(String(describing: focus), privacy: .public) in \(app, privacy: .public): role \(role, privacy: .public), subrole \(subrole, privacy: .public), held modifiers \(flags, privacy: .public)")
     }
 
     /// Which kind of element has the focus. Apps that do not answer
     /// accessibility queries (such as Brave or Warp) are `.unknown`.
     private static func focusState() -> Focus {
-        let system = AXUIElementCreateSystemWide()
-        AXUIElementSetMessagingTimeout(system, 0.5)
-        var reference: CFTypeRef?
-        let result = AXUIElementCopyAttributeValue(system, kAXFocusedUIElementAttribute as CFString, &reference)
+        let (focused, result) = FocusedElement.lookup()
         if result == .noValue { return .noTextField }
-        guard result == .success, let reference, CFGetTypeID(reference) == AXUIElementGetTypeID() else {
-            return .unknown
-        }
-        let element = reference as! AXUIElement
+        guard let element = focused else { return .unknown }
 
-        var role: CFTypeRef?
-        AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &role)
+        let role = FocusedElement.string(kAXRoleAttribute, of: element)
         // Browsers report the page itself when no field on it has the focus.
-        if (role as? String) == "AXWebArea" { return .noTextField }
+        if role == "AXWebArea" { return .noTextField }
         let textRoles = [kAXTextFieldRole, kAXTextAreaRole, kAXComboBoxRole, "AXSearchField"]
-        if let role = role as? String, textRoles.contains(role) { return .textField }
+        if let role, textRoles.contains(role) { return .textField }
 
         var settable: DarwinBoolean = false
         if AXUIElementIsAttributeSettable(element, kAXValueAttribute as CFString, &settable) == .success, settable.boolValue {
@@ -181,6 +144,7 @@ enum TextInserter {
     static func copySelection() async -> String? {
         guard isTrusted else { return nil }
         let pasteboard = NSPasteboard.general
+        pendingRestore?.run()
         let previous = snapshot(of: pasteboard)
         pasteboard.clearContents()
         let changeCount = pasteboard.changeCount
@@ -199,16 +163,40 @@ enum TextInserter {
         return selection
     }
 
+    /// Brings the clipboard back to what it held before a paste, once.
+    private final class PendingRestore {
+        private var previous: Snapshot?
+        var changeCount = 0
+
+        init(previous: Snapshot) {
+            self.previous = previous
+        }
+
+        func run() {
+            guard let previous else { return }
+            self.previous = nil
+            if TextInserter.pendingRestore === self {
+                TextInserter.pendingRestore = nil
+                TextInserter.disarmUserPaste()
+            }
+            let pasteboard = NSPasteboard.general
+            // Something else was copied in the meantime; leave it alone.
+            guard pasteboard.changeCount == changeCount else { return }
+            TextInserter.restore(previous, to: pasteboard)
+        }
+    }
+
+    /// The restore of the last paste, until it has run.
+    private static var pendingRestore: PendingRestore?
+
     /// Marks the key events Ara posts, so the tap below can tell them from the user's.
     private static let syntheticMarker: Int64 = 0x4172_6100
     private static var userPasteTap: CFMachPort?
     private static var userPasteSource: CFRunLoopSource?
-    private static var onUserPaste: (() -> Void)?
 
-    /// Calls `action` right before the user's next ⌘V reaches the focused app.
-    private static func armUserPaste(_ action: @escaping () -> Void) {
+    /// Runs the pending restore right before the user's next ⌘V reaches the focused app.
+    private static func armUserPaste() {
         disarmUserPaste()
-        onUserPaste = action
         let mask = CGEventMask(1 << CGEventType.keyDown.rawValue)
         // An active tap holds the event until the callback returns, so the
         // clipboard is restored before the app reads it.
@@ -244,13 +232,10 @@ enum TextInserter {
             event.flags.contains(.maskCommand),
             event.getIntegerValueField(.eventSourceUserData) != syntheticMarker
         else { return }
-        let action = onUserPaste
-        disarmUserPaste()
-        action?()
+        pendingRestore?.run()
     }
 
     private static func disarmUserPaste() {
-        onUserPaste = nil
         if let userPasteSource {
             CFRunLoopRemoveSource(CFRunLoopGetMain(), userPasteSource, .commonModes)
         }

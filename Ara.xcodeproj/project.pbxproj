@@ -13,12 +13,46 @@
 
 /* Begin PBXFileReference section */
 		D1A000000000000000000001 /* Ara.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Ara.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D1A000000000000000000020 /* AraTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AraTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		D1A000000000000000000022 /* Exceptions for "Ara" folder in "AraTests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AppIcon.icon,
+				AppState.swift,
+				AraApp.swift,
+				Assets.xcassets,
+				AudioRecorder.swift,
+				CorrectionWatcher.swift,
+				FloatingPanel.swift,
+				FocusedElement.swift,
+				MenuContent.swift,
+				OutputMuter.swift,
+				ParakeetEngine.swift,
+				RecordingIndicator.swift,
+				Shortcuts.swift,
+				SpeechEngine.swift,
+				TextInserter.swift,
+				VocabularyView.swift,
+			);
+			target = D1A000000000000000000023 /* AraTests */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		D1A000000000000000000002 /* Ara */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				D1A000000000000000000022 /* Exceptions for "Ara" folder in "AraTests" target */,
+			);
 			path = Ara;
+			sourceTree = "<group>";
+		};
+		D1A000000000000000000021 /* AraTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = AraTests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -33,6 +67,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		D1A000000000000000000024 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -40,6 +81,7 @@
 			isa = PBXGroup;
 			children = (
 				D1A000000000000000000002 /* Ara */,
+				D1A000000000000000000021 /* AraTests */,
 				D1A000000000000000000005 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -48,6 +90,7 @@
 			isa = PBXGroup;
 			children = (
 				D1A000000000000000000001 /* Ara.app */,
+				D1A000000000000000000020 /* AraTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -79,6 +122,26 @@
 			productReference = D1A000000000000000000001 /* Ara.app */;
 			productType = "com.apple.product-type.application";
 		};
+		D1A000000000000000000023 /* AraTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D1A000000000000000000025 /* Build configuration list for PBXNativeTarget "AraTests" */;
+			buildPhases = (
+				D1A000000000000000000026 /* Sources */,
+				D1A000000000000000000024 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				D1A000000000000000000002 /* Ara */,
+				D1A000000000000000000021 /* AraTests */,
+			);
+			name = AraTests;
+			productName = AraTests;
+			productReference = D1A000000000000000000020 /* AraTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -90,6 +153,9 @@
 				LastUpgradeCheck = 2700;
 				TargetAttributes = {
 					D1A000000000000000000006 = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					D1A000000000000000000023 = {
 						CreatedOnToolsVersion = 27.0;
 					};
 				};
@@ -113,6 +179,7 @@
 			projectRoot = "";
 			targets = (
 				D1A000000000000000000006 /* Ara */,
+				D1A000000000000000000023 /* AraTests */,
 			);
 		};
 /* End PBXProject section */
@@ -129,6 +196,13 @@
 
 /* Begin PBXSourcesBuildPhase section */
 		D1A000000000000000000007 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D1A000000000000000000026 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -227,6 +301,34 @@
 			};
 			name = Release;
 		};
+		D1A000000000000000000027 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = MQ73GZU8UB;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.erikondra.AraTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		D1A000000000000000000028 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = MQ73GZU8UB;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.erikondra.AraTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -244,6 +346,15 @@
 			buildConfigurations = (
 				D1A00000000000000000000E /* Debug */,
 				D1A00000000000000000000F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D1A000000000000000000025 /* Build configuration list for PBXNativeTarget "AraTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D1A000000000000000000027 /* Debug */,
+				D1A000000000000000000028 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

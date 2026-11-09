@@ -34,6 +34,7 @@ struct VocabularyView: View {
             .padding(10)
         }
         .frame(minWidth: 560, minHeight: 360)
+        .onDisappear { store.removeEmptyEntries() }
     }
 }
 

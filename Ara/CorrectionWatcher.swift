@@ -81,21 +81,10 @@ nonisolated enum CorrectionWatcher {
     }
 
     private static func focusedElement() -> AXUIElement? {
-        let system = AXUIElementCreateSystemWide()
-        // Never let an unresponsive app stall the watcher.
-        AXUIElementSetMessagingTimeout(system, 0.5)
-        var reference: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(system, kAXFocusedUIElementAttribute as CFString, &reference) == .success,
-            let reference, CFGetTypeID(reference) == AXUIElementGetTypeID()
-        else { return nil }
-        return (reference as! AXUIElement)
+        FocusedElement.current()
     }
 
     private static func value(of element: AXUIElement) -> String? {
-        var reference: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(element, kAXValueAttribute as CFString, &reference) == .success else {
-            return nil
-        }
-        return reference as? String
+        FocusedElement.value(of: element)
     }
 }

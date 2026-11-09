@@ -153,6 +153,14 @@ final class VocabularyStore {
         entries.append(VocabularyEntry(heard: "", replacement: ""))
     }
 
+    /// Drops rows that were added by hand but never filled in.
+    func removeEmptyEntries() {
+        let blank = { (text: String) in text.trimmingCharacters(in: .whitespaces).isEmpty }
+        if entries.contains(where: { blank($0.heard) && blank($0.replacement) }) {
+            entries.removeAll { blank($0.heard) && blank($0.replacement) }
+        }
+    }
+
     func delete(_ entry: VocabularyEntry) {
         entries.removeAll { $0.id == entry.id }
     }
