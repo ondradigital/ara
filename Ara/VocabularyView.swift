@@ -12,6 +12,8 @@ struct VocabularyView: View {
                     systemImage: "character.book.closed",
                     description: Text("Correct a dictated word and confirm the suggestion, or add one yourself.")
                 )
+                // Fills the window like the list does, so the bar stays at the bottom edge.
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List {
                     ForEach($store.entries) { $entry in
