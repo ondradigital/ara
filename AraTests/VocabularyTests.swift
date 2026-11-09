@@ -67,4 +67,27 @@ struct VocabularyTests {
         store.deleteAll()
         #expect(store.entries.isEmpty)
     }
+
+    @Test func commonWordIsFirstTiedToItsNeighbour() {
+        let store = makeStore()
+        var known: [CorrectionDiff.Correction] = []
+        let proposals = store.proposals(inserted: "Ich nutze Cloud Code", edited: "Ich nutze Claude Code", known: &known)
+        #expect(proposals.map(\.heard) == ["Cloud Code"])
+    }
+
+    @Test func secondNeighbourMakesTheRuleGeneral() {
+        let store = makeStore([
+            VocabularyEntry(heard: "Cloud Code", replacement: "Claude Code"),
+            VocabularyEntry(heard: "von Cloud", replacement: "von claude"),
+            VocabularyEntry(heard: "Google Cloud", replacement: "Google Cloud"),
+        ])
+        var known: [CorrectionDiff.Correction] = []
+        let proposals = store.proposals(inserted: "Das kann Cloud gut", edited: "Das kann Claude gut", known: &known)
+        #expect(proposals.count == 1)
+        #expect(proposals.first?.heard == "Cloud")
+        #expect(proposals.first?.replaces.count == 2)
+
+        store.accept(proposals[0])
+        #expect(store.entries.map(\.heard).sorted() == ["Cloud", "Google Cloud"])
+    }
 }

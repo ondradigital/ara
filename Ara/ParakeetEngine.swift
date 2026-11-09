@@ -21,6 +21,10 @@ actor ParakeetEngine: SpeechEngine {
         guard let manager else { throw ASRError.notInitialized }
         // Every dictation is independent, so each one starts from a fresh decoder state.
         var state = TdtDecoderState.make(decoderLayers: await manager.decoderLayerCount)
-        return try await manager.transcribe(samples, decoderState: &state).text
+        let text = try await manager.transcribe(samples, decoderState: &state).text
+        // The model writes <unk> for sounds it has no token for.
+        return text.replacingOccurrences(of: "<unk>", with: "")
+            .replacingOccurrences(of: #"\s{2,}"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespaces)
     }
 }

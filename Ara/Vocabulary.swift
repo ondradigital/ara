@@ -31,6 +31,8 @@ struct VocabularyProposal: Identifiable, Equatable {
     var kind: Kind
     var heard: String
     var replacement: String
+    /// Narrower rules for the same correction that this one makes unnecessary.
+    var replaces: [VocabularyEntry.ID] = []
     var deadline = Date.now.addingTimeInterval(Double(Self.countdown.components.seconds))
 }
 
@@ -91,7 +93,9 @@ final class VocabularyStore {
         switch proposal.kind {
         case .add:
             // A new spelling for the same phrase replaces the old rule.
-            var updated = entries.filter { $0.heard.caseInsensitiveCompare(proposal.heard) != .orderedSame }
+            var updated = entries.filter {
+                $0.heard.caseInsensitiveCompare(proposal.heard) != .orderedSame && !proposal.replaces.contains($0.id)
+            }
             updated.append(VocabularyEntry(heard: proposal.heard, replacement: proposal.replacement))
             entries = updated
         case .remove(let id):
@@ -112,12 +116,39 @@ final class VocabularyStore {
             }
         }
 
-        let rule = candidates[0]
+        var rule = candidates[0]
+        var replaces: [VocabularyEntry.ID] = []
+        // The same word was already corrected the same way next to another word,
+        // so it is wrong regardless of its neighbours: one general rule replaces the narrow ones.
+        if rule.heard != correction.heard {
+            let narrower = entries.filter { isNarrower($0, than: correction) }
+            if !narrower.isEmpty {
+                rule = (correction.heard, correction.replacement)
+                replaces = narrower.map(\.id)
+            }
+        }
+
         // A rule the user switched off is known already; do not ask about it again.
         let isKnown = entries.contains {
             $0.replacement == rule.replacement && $0.heard.caseInsensitiveCompare(rule.heard) == .orderedSame
         }
-        return isKnown ? nil : VocabularyProposal(kind: .add, heard: rule.heard, replacement: rule.replacement)
+        return isKnown
+            ? nil
+            : VocabularyProposal(kind: .add, heard: rule.heard, replacement: rule.replacement, replaces: replaces)
+    }
+
+    /// Whether `entry` is `correction` tied to some neighbouring word,
+    /// such as "von Cloud" → "von Claude" for "Cloud" → "Claude".
+    private func isNarrower(_ entry: VocabularyEntry, than correction: CorrectionDiff.Correction) -> Bool {
+        guard entry.isActive, entry.heard.caseInsensitiveCompare(correction.heard) != .orderedSame,
+            let regex = Self.regex(for: correction.heard)
+        else { return false }
+        let rewritten = regex.stringByReplacingMatches(
+            in: entry.heard,
+            range: NSRange(entry.heard.startIndex..., in: entry.heard),
+            withTemplate: NSRegularExpression.escapedTemplate(for: correction.replacement)
+        )
+        return rewritten != entry.heard && rewritten.caseInsensitiveCompare(entry.replacement) == .orderedSame
     }
 
     /// The rule a correction stands for, preferred form first. A corrected

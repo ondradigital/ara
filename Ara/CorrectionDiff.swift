@@ -62,7 +62,8 @@ nonisolated enum CorrectionDiff {
             let heard = removed.joined(separator: " ")
             let replacement = inserted.joined(separator: " ")
             guard removed.count <= maxWords, inserted.count <= maxWords,
-                similarity(heard.lowercased(), replacement.lowercased()) >= minSimilarity
+                similarity(heard.lowercased(), replacement.lowercased()) >= minSimilarity,
+                isMisheard(heard, as: replacement)
             else { continue }
 
             corrections.append(
@@ -94,7 +95,7 @@ nonisolated enum CorrectionDiff {
                 // A selection that already reads like the original is no correction.
                 if heard == wanted { return nil }
                 let score = similarity(heard.lowercased(), wanted.lowercased())
-                if score >= minSimilarity, score > (best?.similarity ?? 0) {
+                if score >= minSimilarity, score > (best?.similarity ?? 0), isMisheard(heard, as: wanted) {
                     best = (start, length, score)
                 }
             }
@@ -108,6 +109,20 @@ nonisolated enum CorrectionDiff {
             wordBefore: best.start > 0 ? old[best.start - 1] : nil,
             wordAfter: end < old.count ? old[end] : nil
         )
+    }
+
+    /// Whether changing `heard` into `replacement` looks like fixing a misheard
+    /// word, as opposed to other edits that happen in the same text field.
+    static func isMisheard(_ heard: String, as replacement: String) -> Bool {
+        let heard = heard.lowercased()
+        let replacement = replacement.lowercased()
+        // Only the case changed, such as a word moved to the start of a sentence.
+        guard heard != replacement else { return false }
+        // Text was typed or pasted right after the word (such as "[Image #3]"), or the end was cut off.
+        guard !replacement.hasPrefix(heard), !heard.hasPrefix(replacement) else { return false }
+        // Placeholders that other apps or the speech model put into the text.
+        let markers = ["[image", "<unk>"]
+        return !markers.contains { heard.contains($0) || replacement.contains($0) }
     }
 
     /// Words without the punctuation around them; "Next.js" stays whole.

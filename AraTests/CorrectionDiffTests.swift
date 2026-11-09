@@ -46,4 +46,19 @@ struct CorrectionDiffTests {
         #expect(CorrectionDiff.similarity("abc", "xyz") == 0)
         #expect(CorrectionDiff.similarity("", "") == 1)
     }
+
+    @Test func ignoresEditsThatAreNoMishearing() {
+        // Only the case changed.
+        #expect(CorrectionDiff.corrections(from: "Habe ich das", to: "habe ich das").isEmpty)
+        // An image placeholder was pasted right after a word.
+        #expect(CorrectionDiff.corrections(from: "wieder abgeschnitten", to: "wieder abgeschnitten.[Image #27]").isEmpty)
+        // The end of a word was deleted.
+        #expect(CorrectionDiff.corrections(from: "Yeah gut", to: "Ye gut").isEmpty)
+    }
+
+    @Test func keepsRealMishearings() {
+        #expect(CorrectionDiff.isMisheard("localway", as: "local way"))
+        #expect(CorrectionDiff.isMisheard("Git Butler", as: "GitButler"))
+        #expect(CorrectionDiff.isMisheard("Juwelia", as: "Juwelier"))
+    }
 }
