@@ -41,6 +41,8 @@ final class AppState {
     }
     private(set) var modelState: ModelState = .loading(fraction: 0)
     private(set) var lastTranscript: String?
+    /// How sure the engine was of each word in `lastTranscript`.
+    private var lastWordConfidences: [String: Float] = [:]
     private(set) var lastError: String?
 
     var mutesOutputWhileRecording = UserDefaults.standard.object(forKey: "mutesOutputWhileRecording") as? Bool ?? true {
@@ -214,11 +216,13 @@ final class AppState {
         Task {
             let started = ContinuousClock.now
             do {
-                let text = vocabulary.apply(to: try await engine.transcribe(samples))
+                let transcript = try await engine.transcribe(samples)
+                let text = vocabulary.apply(to: transcript.text)
                 let elapsed = ContinuousClock.now - started
                 if !text.isEmpty {
                     // An empty result (nothing was said) must not replace the last real transcript in the menu.
                     lastTranscript = text
+                    lastWordConfidences = transcript.wordConfidences
                     await insert(text)
                 } else {
                     showNotice("Nothing recognized.", systemImage: "waveform.slash")
@@ -298,11 +302,12 @@ final class AppState {
     private func watchForCorrections(of inserted: String) {
         correctionWatch?.cancel()
         let session = CorrectionSession()
+        let confidences = lastWordConfidences
         // Names the app in the log, because only some apps let their text be read.
         let app = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "unknown"
         correctionWatch = Task {
             let final = await CorrectionWatcher.observe(inserted: inserted) { [weak self] edited in
-                self?.proposeCorrections(inserted: inserted, edited: edited, session: session)
+                self?.proposeCorrections(inserted: inserted, edited: edited, confidences: confidences, session: session)
             }
             if final == nil {
                 logger.notice("corrections: text field not readable in \(app, privacy: .public)")
@@ -312,8 +317,10 @@ final class AppState {
         }
     }
 
-    private func proposeCorrections(inserted: String, edited: String, session: CorrectionSession) {
-        enqueue(vocabulary.proposals(inserted: inserted, edited: edited, known: &session.known))
+    private func proposeCorrections(
+        inserted: String, edited: String, confidences: [String: Float], session: CorrectionSession
+    ) {
+        enqueue(vocabulary.proposals(inserted: inserted, edited: edited, confidences: confidences, known: &session.known))
     }
 
     /// For apps whose text field cannot be watched: the user selects the word

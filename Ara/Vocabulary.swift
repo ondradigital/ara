@@ -1,5 +1,6 @@
 import AppKit
 import Observation
+import os
 
 /// One spelling the app writes differently from what the speech engine produced.
 struct VocabularyEntry: Codable, Identifiable, Equatable {
@@ -45,9 +46,34 @@ final class VocabularyStore {
     }
 
     private let fileURL: URL
+    private let logger = Logger(subsystem: "com.erikondra.Ara", category: "vocabulary")
+
+    /// Below this confidence the engine was unsure of a word, so a correction
+    /// of it is most likely a mishearing and is proposed right away.
+    static let uncertainConfidence: Float = 0.8
+    /// A correction of a word the engine was sure of could just be rewording.
+    /// It is only proposed once it has been made a second time within this many days.
+    static let repeatWindowDays = 60
+
+    /// Corrections of confidently heard words that were made once so far.
+    private var sightings: [Sighting] = []
+    private let sightingsURL: URL
+
+    private struct Sighting: Codable {
+        var heard: String
+        var replacement: String
+        var date: Date
+    }
 
     init(fileURL: URL = .applicationSupportDirectory.appending(path: "Ara/vocabulary.json")) {
         self.fileURL = fileURL
+        sightingsURL = fileURL.deletingLastPathComponent().appending(path: "corrections-seen.json")
+        if let data = try? Data(contentsOf: sightingsURL),
+            let stored = try? JSONDecoder().decode([Sighting].self, from: data)
+        {
+            let cutoff = Date.now.addingTimeInterval(-Double(Self.repeatWindowDays) * 86_400)
+            sightings = stored.filter { $0.date > cutoff }
+        }
         if let data = try? Data(contentsOf: fileURL),
             let stored = try? JSONDecoder().decode([VocabularyEntry].self, from: data)
         {
@@ -76,12 +102,67 @@ final class VocabularyStore {
 
     /// Turns the corrections found in `edited` that are not in `known` yet
     /// into proposals for the user to confirm.
+    ///
+    /// A correction is only proposed when it is likely a mishearing: the engine
+    /// was unsure of the word (`confidences`), the correction was made before,
+    /// or it undoes an automatic replacement. Otherwise it is remembered, and
+    /// proposed when the same correction is made a second time.
     func proposals(
-        inserted: String, edited: String, known: inout [CorrectionDiff.Correction]
+        inserted: String, edited: String, confidences: [String: Float] = [:], known: inout [CorrectionDiff.Correction]
     ) -> [VocabularyProposal] {
         let corrections = CorrectionDiff.corrections(from: inserted, to: edited).filter { !known.contains($0) }
         known += corrections
-        return corrections.compactMap(proposal(for:))
+        return corrections.compactMap { correction in
+            guard let proposal = proposal(for: correction) else { return nil }
+            if case .remove = proposal.kind { return proposal }
+
+            let confidence = CorrectionDiff.words(in: correction.heard)
+                .compactMap { confidences[$0.lowercased()] }
+                .min()
+            let isUncertain = confidence.map { $0 < Self.uncertainConfidence } ?? false
+            let isRepeat = takeSighting(of: correction)
+            // Only numbers go to the log, never the words, to calibrate the threshold.
+            let confidenceText = confidence.map { String(format: "%.2f", $0) } ?? "-"
+            logger.notice("correction: confidence \(confidenceText, privacy: .public), uncertain \(isUncertain, privacy: .public), repeat \(isRepeat, privacy: .public)")
+            if isUncertain || isRepeat { return proposal }
+
+            remember(correction)
+            return nil
+        }
+    }
+
+    // MARK: - Sightings
+
+    private static func key(_ text: String) -> String {
+        text.lowercased().split(whereSeparator: \.isWhitespace).joined(separator: " ")
+    }
+
+    /// Whether the same correction was made before; if so, it is used up.
+    private func takeSighting(of correction: CorrectionDiff.Correction) -> Bool {
+        let heard = Self.key(correction.heard)
+        let replacement = Self.key(correction.replacement)
+        guard let index = sightings.firstIndex(where: { $0.heard == heard && $0.replacement == replacement }) else {
+            return false
+        }
+        sightings.remove(at: index)
+        saveSightings()
+        return true
+    }
+
+    private func remember(_ correction: CorrectionDiff.Correction) {
+        sightings.append(Sighting(heard: Self.key(correction.heard), replacement: Self.key(correction.replacement), date: .now))
+        // Keeps the file small; the oldest sightings go first.
+        sightings = Array(sightings.suffix(300))
+        saveSightings()
+    }
+
+    private func saveSightings() {
+        do {
+            try FileManager.default.createDirectory(at: sightingsURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try JSONEncoder().encode(sightings).write(to: sightingsURL, options: .atomic)
+        } catch {
+            logger.error("saving the correction sightings failed: \(error, privacy: .public)")
+        }
     }
 
     /// The proposal for a correction that was picked out by hand, not found by watching.
@@ -194,6 +275,8 @@ final class VocabularyStore {
 
     func deleteAll() {
         entries.removeAll()
+        sightings.removeAll()
+        saveSightings()
     }
 
     func delete(_ entry: VocabularyEntry) {

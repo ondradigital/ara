@@ -37,7 +37,7 @@ Das Skript prüft die Voraussetzungen, baut Ara, installiert es nach `/Applicati
 | ⌥ ⇧ Leertaste | Markiertes, korrigiertes Wort ins Wörterbuch übernehmen |
 
 - **Einfügen:** Ara fügt über die Zwischenablage ein und legt danach deren alten Inhalt zurück. Kommt der Text in einem Feld nicht an, erscheint ein Hinweis, dann hilft ⌃ ⌥ V.
-- **Wörterbuch:** Korrigierst du ein falsch erkanntes Wort direkt im Text, schlägt Ara eine Regel vor und übernimmt sie nach 5 Sekunden, wenn du nicht abbrichst. Alle Regeln stehen im Menü unter „Personal Vocabulary…“. Manche Apps lassen ihren Text nicht auslesen. Dort markierst du das korrigierte Wort und drückst ⌥ ⇧ Leertaste.
+- **Wörterbuch:** Korrigierst du ein falsch erkanntes Wort direkt im Text, schlägt Ara eine Regel vor und übernimmt sie nach 5 Sekunden, wenn du nicht abbrichst. Sofort kommt der Vorschlag nur, wenn die Spracherkennung bei dem Wort unsicher war. Sonst wartet Ara, bis du dieselbe Korrektur ein zweites Mal machst, damit gewöhnliches Umformulieren nicht im Wörterbuch landet. Alle Regeln stehen im Menü unter „Personal Vocabulary…“. Manche Apps lassen ihren Text nicht auslesen. Dort markierst du das korrigierte Wort und drückst ⌥ ⇧ Leertaste.
 - **Ton aus:** Während der Aufnahme schaltet Ara die Wiedergabe stumm, damit Musik nicht mit aufgenommen wird. Abschaltbar im Menü.
 - **Bei Anmeldung starten:** im Menü einschaltbar.
 
