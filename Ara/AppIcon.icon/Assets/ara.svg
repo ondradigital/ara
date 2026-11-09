@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- head and neck, with the eye left open -->
+  <path fill="#FFFFFF" fill-rule="evenodd" d="M300 1024 C250 820 210 640 250 480 C290 300 430 200 560 210 C605 214 640 236 664 276 C686 370 688 490 640 600 C640 720 700 860 760 1024 Z M607 402 a32 32 0 1 0 -64 0 a32 32 0 1 0 64 0 Z"/>
+  <!-- upper beak -->
+  <path fill="#FFFFFF" d="M690 272 C795 262 888 356 876 500 C867 590 824 660 774 700 C794 630 764 572 692 548 C700 460 704 362 690 272 Z"/>
+  <!-- lower beak -->
+  <path fill="#FFFFFF" d="M690 580 C722 590 746 616 748 650 C724 676 690 672 668 640 C664 616 672 594 690 580 Z"/>
+</svg>
