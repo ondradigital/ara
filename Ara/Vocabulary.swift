@@ -1,6 +1,5 @@
 import AppKit
 import Observation
-import os
 
 /// One spelling the app writes differently from what the speech engine produced.
 struct VocabularyEntry: Codable, Identifiable, Equatable {
@@ -46,7 +45,6 @@ final class VocabularyStore {
     }
 
     private let fileURL: URL
-    private let logger = Logger(subsystem: "com.erikondra.Ara", category: "vocabulary")
 
     /// Below this confidence the engine was unsure of a word, so a correction
     /// of it is most likely a mishearing and is proposed right away.
@@ -121,9 +119,6 @@ final class VocabularyStore {
                 .min()
             let isUncertain = confidence.map { $0 < Self.uncertainConfidence } ?? false
             let isRepeat = takeSighting(of: correction)
-            // Only numbers go to the log, never the words, to calibrate the threshold.
-            let confidenceText = confidence.map { String(format: "%.2f", $0) } ?? "-"
-            logger.notice("correction: confidence \(confidenceText, privacy: .public), uncertain \(isUncertain, privacy: .public), repeat \(isRepeat, privacy: .public)")
             if isUncertain || isRepeat { return proposal }
 
             remember(correction)
@@ -161,7 +156,7 @@ final class VocabularyStore {
             try FileManager.default.createDirectory(at: sightingsURL.deletingLastPathComponent(), withIntermediateDirectories: true)
             try JSONEncoder().encode(sightings).write(to: sightingsURL, options: .atomic)
         } catch {
-            logger.error("saving the correction sightings failed: \(error, privacy: .public)")
+            // Ignored: a lost sighting only means a correction has to be made once more before it is proposed.
         }
     }
 
@@ -300,7 +295,7 @@ final class VocabularyStore {
             try FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
             try encoder.encode(entries).write(to: fileURL, options: .atomic)
         } catch {
-            NSLog("Ara: saving the vocabulary failed: \(error)")
+            // Ignored: the entries stay in memory and are written again with the next change.
         }
     }
 }

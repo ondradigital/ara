@@ -4,7 +4,6 @@ import AVFoundation
 import KeyboardShortcuts
 import Observation
 import ServiceManagement
-import os
 
 enum DictationPhase {
     case idle
@@ -71,7 +70,6 @@ final class AppState {
     private let muter = OutputMuter()
     private var correctionWatch: Task<Void, Never>?
     private let engine: any SpeechEngine = ParakeetEngine()
-    private let logger = Logger(subsystem: "com.erikondra.Ara", category: "dictation")
 
     init() {
         // The global shortcut only fires on key down, so one press starts a
@@ -145,11 +143,9 @@ final class AppState {
         _ = recorder.stop()
         muter.restore()
         phase = .idle
-        logger.notice("recording cancelled")
     }
 
     private func loadModel() async {
-        let started = ContinuousClock.now
         do {
             try await engine.prepare { [weak self] fraction in
                 Task { @MainActor in
@@ -159,10 +155,8 @@ final class AppState {
                 }
             }
             modelState = .ready
-            logger.notice("speech model ready after \(ContinuousClock.now - started, privacy: .public)")
         } catch {
             modelState = .failed(error.localizedDescription)
-            logger.error("speech model failed to load: \(error, privacy: .public)")
         }
     }
 
@@ -186,7 +180,6 @@ final class AppState {
         correctionWatch?.cancel()
 
         do {
-            let started = ContinuousClock.now
             meter.reset()
             try recorder.start()
             // Muted after the recorder is running, so it never delays the start.
@@ -195,10 +188,8 @@ final class AppState {
             }
             lastError = nil
             phase = .recording
-            logger.notice("recording running after \(ContinuousClock.now - started, privacy: .public)")
         } catch {
             lastError = "Could not start recording: \(error.localizedDescription)"
-            logger.error("recorder start failed: \(error, privacy: .public)")
         }
     }
 
@@ -214,11 +205,9 @@ final class AppState {
 
         phase = .transcribing
         Task {
-            let started = ContinuousClock.now
             do {
                 let transcript = try await engine.transcribe(samples)
                 let text = vocabulary.apply(to: transcript.text)
-                let elapsed = ContinuousClock.now - started
                 if !text.isEmpty {
                     // An empty result (nothing was said) must not replace the last real transcript in the menu.
                     lastTranscript = text
@@ -227,10 +216,8 @@ final class AppState {
                 } else {
                     showNotice("Nothing recognized.", systemImage: "waveform.slash")
                 }
-                logger.notice("transcribed \(seconds, format: .fixed(precision: 1), privacy: .public) s of audio in \(elapsed, privacy: .public)")
             } catch {
                 lastError = "Transcription failed: \(error.localizedDescription)"
-                logger.error("transcription failed: \(error, privacy: .public)")
             }
             phase = .idle
         }
@@ -239,7 +226,6 @@ final class AppState {
     /// Pastes `text` into the focused field and tells the user when that may not have worked.
     private func insert(_ text: String) async {
         let outcome = await TextInserter.insert(text)
-        logger.notice("insert outcome: \(String(describing: outcome), privacy: .public)")
         switch outcome {
         case .pasted:
             watchForCorrections(of: text)
@@ -303,16 +289,9 @@ final class AppState {
         correctionWatch?.cancel()
         let session = CorrectionSession()
         let confidences = lastWordConfidences
-        // Names the app in the log, because only some apps let their text be read.
-        let app = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "unknown"
         correctionWatch = Task {
-            let final = await CorrectionWatcher.observe(inserted: inserted) { [weak self] edited in
+            _ = await CorrectionWatcher.observe(inserted: inserted) { [weak self] edited in
                 self?.proposeCorrections(inserted: inserted, edited: edited, confidences: confidences, session: session)
-            }
-            if final == nil {
-                logger.notice("corrections: text field not readable in \(app, privacy: .public)")
-            } else {
-                logger.notice("corrections: watch ended in \(app, privacy: .public), \(session.known.count, privacy: .public) found")
             }
         }
     }

@@ -1,6 +1,5 @@
 import AppKit
 import SwiftUI
-import os
 
 /// A small borderless panel that floats above all apps without taking the
 /// keyboard focus, used for the recording indicator and the vocabulary prompt.
@@ -16,7 +15,6 @@ final class FloatingPanel {
     private let position: Position
     private let isInteractive: Bool
     private var panel: NSPanel?
-    private let logger = Logger(subsystem: "com.erikondra.Ara", category: "panel")
 
     /// An interactive panel takes clicks; otherwise clicks pass through to
     /// whatever is underneath.
@@ -51,8 +49,6 @@ final class FloatingPanel {
             // visible area, so it stays put whether the Dock is showing or hidden.
             let y = position == .top ? area.maxY - size.height - 12 : screen.frame.minY + Self.bottomMargin
             panel.setFrame(NSRect(x: area.midX - size.width / 2, y: y, width: size.width, height: size.height), display: true)
-            // Shows which display and area the panel was placed in, to trace a panel that sits too low.
-            logger.notice("placed \(String(describing: self.position), privacy: .public) panel on \(screen.localizedName, privacy: .public): frame \(NSStringFromRect(screen.frame), privacy: .public), visible \(NSStringFromRect(area), privacy: .public), size \(NSStringFromSize(size), privacy: .public), y \(y, format: .fixed(precision: 0), privacy: .public)")
         }
         panel.orderFrontRegardless()
     }

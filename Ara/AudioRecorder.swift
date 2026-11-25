@@ -55,7 +55,6 @@ nonisolated final class AudioRecorder {
         private let progress: OSAllocatedUnfairLock<Progress>
         private var ioProc: AudioDeviceIOProcID?
         private var rateListener: AudioObjectPropertyListenerBlock?
-        private let logger = Logger(subsystem: "com.erikondra.Ara", category: "audio")
 
         // Once the device runs, only its IO thread touches these.
         private var converter: AVAudioConverter
@@ -101,7 +100,6 @@ nonisolated final class AudioRecorder {
             // A throw from here on still runs `deinit`, which takes the callback and the listener away again.
             status = AudioDeviceStart(device, ioProc)
             guard status == noErr else { throw RecorderError.deviceFailed(status) }
-            logger.notice("recording from \(Self.name(of: device), privacy: .public) at \(sampleRate, privacy: .public) Hz")
         }
 
         deinit {
@@ -126,7 +124,6 @@ nonisolated final class AudioRecorder {
         private func sampleRateDidChange() {
             guard let sampleRate = Self.read(Self.sampleRateAddress, of: device, as: Float64.self), sampleRate > 0 else { return }
             progress.withLock { $0.sampleRate = sampleRate }
-            logger.notice("input device switched to \(sampleRate, privacy: .public) Hz while recording")
         }
 
         /// Called on the device's IO thread with every few milliseconds of input.
@@ -226,20 +223,6 @@ nonisolated final class AudioRecorder {
             mScope: kAudioObjectPropertyScopeGlobal,
             mElement: kAudioObjectPropertyElementMain
         )
-
-        private static func name(of device: AudioDeviceID) -> String {
-            var address = AudioObjectPropertyAddress(
-                mSelector: kAudioObjectPropertyName,
-                mScope: kAudioObjectPropertyScopeGlobal,
-                mElement: kAudioObjectPropertyElementMain
-            )
-            var name: Unmanaged<CFString>?
-            var size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
-            guard AudioObjectGetPropertyData(device, &address, 0, nil, &size, &name) == noErr, let name else {
-                return "device \(device)"
-            }
-            return name.takeRetainedValue() as String
-        }
 
         private static func read<Value>(_ address: AudioObjectPropertyAddress, of object: AudioObjectID, as type: Value.Type) -> Value? {
             var address = address

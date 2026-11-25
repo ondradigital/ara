@@ -1,12 +1,9 @@
 import AppKit
 import Carbon.HIToolbox
-import os
 
 /// Types text into whichever app has focus by pasting it, then puts the
 /// previous clipboard content back.
 enum TextInserter {
-    private static let logger = Logger(subsystem: "com.erikondra.Ara", category: "insert")
-
     /// Posting key events to other apps needs the Accessibility permission.
     static var isTrusted: Bool { AXIsProcessTrusted() }
 
@@ -54,7 +51,6 @@ enum TextInserter {
 
         let focused = FocusedElement.current()
         let focus = focusState()
-        logFocus(focus, element: focused)
         // Nothing would receive the paste, so the clipboard is the only place the text can live.
         guard focus != .noTextField else {
             pasteboard.clearContents()
@@ -99,18 +95,8 @@ enum TextInserter {
                 return .pasted
             }
         }
-        logger.notice("paste not seen in the field after 1.5 s")
         restore.run()
         return .pasteFailed
-    }
-
-    /// Records where a paste goes, to trace fields that do not take it.
-    private static func logFocus(_ focus: Focus, element: AXUIElement?) {
-        let app = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "?"
-        let role = element.flatMap { FocusedElement.string(kAXRoleAttribute, of: $0) } ?? "-"
-        let subrole = element.flatMap { FocusedElement.string(kAXSubroleAttribute, of: $0) } ?? "-"
-        let flags = CGEventSource.flagsState(.combinedSessionState).rawValue
-        logger.notice("focus \(String(describing: focus), privacy: .public) in \(app, privacy: .public): role \(role, privacy: .public), subrole \(subrole, privacy: .public), held modifiers \(flags, privacy: .public)")
     }
 
     /// Which kind of element has the focus. Apps that do not answer
@@ -213,7 +199,7 @@ enum TextInserter {
             },
             userInfo: nil
         ) else {
-            logger.error("could not create the key tap for ⌘V")
+            // Without the tap a ⌘V by the user is not noticed; the timed restore still brings the clipboard back.
             return
         }
         let source = CFMachPortCreateRunLoopSource(nil, tap, 0)

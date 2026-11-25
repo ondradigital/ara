@@ -62,7 +62,6 @@ Die zweite Zeile löscht das Wörterbuch und das Sprachmodell. Den Eintrag unter
 
 - Projekt in Xcode öffnen: `open Ara.xcodeproj`
 - Tests: `xcodebuild test -project Ara.xcodeproj -scheme AraTests -derivedDataPath build -quiet`
-- Logs der laufenden App: `log show --last 1h --predicate 'subsystem == "com.erikondra.Ara"' --style compact`
 
 Das Test-Target `AraTests` kompiliert nur die reinen Logik-Dateien mit (`CorrectionDiff.swift`, `Vocabulary.swift`). Eine neue Datei im Ordner `Ara` landet automatisch auch dort. Braucht sie KeyboardShortcuts oder FluidAudio, muss sie in Xcode aus dem Target `AraTests` genommen werden.
 

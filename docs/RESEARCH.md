@@ -73,8 +73,8 @@ Stand 2026-10-01: Bestätigung statt Zählschwelle (Wunsch von Erik).
 - 2026-10-02, Hotkey bis Aufnahme läuft (aus dem Systemlog): 0,08 s mit wiederverwendeter
   `AVAudioEngine`, 0,75–1,05 s mit einer neuen Engine pro Aufnahme (davon rund 0,6 s für das
   Verbinden mit Mikrofon und Ausgabegerät). Die Engine wurde deshalb behalten und nur nach einem
-  Gerätewechsel ersetzt (überholt am 2026-10-03). Die App schreibt den Wert bei jedem Diktat als
-  „recording running after …“ ins Log.
+  Gerätewechsel ersetzt (überholt am 2026-10-03). Das Diagnose-Logging, das diesen Wert bei jedem
+  Diktat schrieb, wurde am 2026-11-24 entfernt.
 - 2026-10-03, Aufnahme ohne `AVAudioEngine`: Die App hing dauerhaft im Hauptthread in
   `AVAudioEngine.inputNode` (Endlosschleife in `AVAudioIOUnit_OSX::_GetHWFormat`, macOS 27.0.1),
   als die Engine nach einem Gerätewechsel ersetzt wurde. Vier Minuten vorher hatten beim Wechsel
